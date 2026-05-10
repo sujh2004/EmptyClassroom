@@ -2,30 +2,41 @@ package crawler
 
 import "testing"
 
-func TestParseClassroomsFlatRecords(t *testing.T) {
-	body := []byte(`{"data":[{"building":"\u6559\u4e09\u697c","roomNumber":"101","occupancy":"01010101010101"}]}`)
+func TestParseClassrooms(t *testing.T) {
+	// Real BUPT API format: each slot lists occupied classrooms as "building-room(capacity)"
+	body := []byte(`{"code":"1","Msg":"success","data":[
+		{"CLASSROOMS":"\u6559\u4e09-101(60),\u6559\u4e09-102(80)","NODENAME":"1","NODETIME":"08:00-08:45"},
+		{"CLASSROOMS":"\u6559\u4e09-101(60)","NODENAME":"2","NODETIME":"08:50-09:35"}
+	]}`)
 	rooms, err := ParseClassrooms(body)
 	if err != nil {
 		t.Fatalf("parse classrooms: %v", err)
 	}
-	if len(rooms) != 1 {
-		t.Fatalf("len(rooms) = %d, want 1", len(rooms))
+	if len(rooms) != 2 {
+		t.Fatalf("len(rooms) = %d, want 2", len(rooms))
 	}
-	if rooms[0].Building != "\u6559\u4e09\u697c" || rooms[0].RoomNumber != "101" || rooms[0].Occupancy != "01010101010101" {
-		t.Fatalf("room = %+v", rooms[0])
+	// 教三-101: occupied slot 1+2 → "11000000000000"
+	// 教三-102: occupied slot 1 only → "10000000000000"
+	for _, r := range rooms {
+		if r.Building == "教三" && r.RoomNumber == "101" {
+			if r.Occupancy != "11000000000000" {
+				t.Fatalf("教三-101 occupancy = %s, want 11000000000000", r.Occupancy)
+			}
+		} else if r.Building == "教三" && r.RoomNumber == "102" {
+			if r.Occupancy != "10000000000000" {
+				t.Fatalf("教三-102 occupancy = %s, want 10000000000000", r.Occupancy)
+			}
+		} else {
+			t.Fatalf("unexpected room: %s-%s", r.Building, r.RoomNumber)
+		}
 	}
 }
 
-func TestParseClassroomsNestedBuilding(t *testing.T) {
-	body := []byte(`{"data":[{"buildingName":"\u6559\u5b66\u697cA","rooms":[{"roomNo":"201","status":[0,1,0,1,0,1,0,1,0,1,0,1,0,1]}]}]}`)
-	rooms, err := ParseClassrooms(body)
-	if err != nil {
-		t.Fatalf("parse classrooms: %v", err)
-	}
-	if len(rooms) != 1 {
-		t.Fatalf("len(rooms) = %d, want 1", len(rooms))
-	}
-	if rooms[0].Building != "\u6559\u5b66\u697cA" || rooms[0].RoomNumber != "201" || rooms[0].Occupancy != "01010101010101" {
-		t.Fatalf("room = %+v", rooms[0])
+func TestParseClassroomsEmpty(t *testing.T) {
+	// Weekend / no data: CLASSROOMS is an object, not a string
+	body := []byte(`{"code":"1","Msg":"success","data":[{"CLASSROOMS":{"array":false},"NODENAME":"1"}]}`)
+	_, err := ParseClassrooms(body)
+	if err == nil {
+		t.Fatal("expected error for empty data")
 	}
 }

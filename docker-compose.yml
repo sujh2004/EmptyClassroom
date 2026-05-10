@@ -8,8 +8,6 @@ services:
       MYSQL_USER: empty
       MYSQL_PASSWORD: empty
       TZ: Asia/Shanghai
-    ports:
-      - "3307:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./migrations:/docker-entrypoint-initdb.d:ro

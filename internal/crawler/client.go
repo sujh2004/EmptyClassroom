@@ -195,3 +195,22 @@ func truncate(body []byte, max int) string {
 	}
 	return string(body[:max]) + "..."
 }
+
+func lookup(obj map[string]any, key string) (any, bool) {
+	normalized := strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(key))
+	for candidate, value := range obj {
+		if strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(candidate)) == normalized {
+			return value, true
+		}
+	}
+	return nil, false
+}
+
+func stringify(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	default:
+		return strings.TrimSpace(fmt.Sprint(typed))
+	}
+}
