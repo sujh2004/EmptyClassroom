@@ -51,7 +51,7 @@ func Load(dotEnvPath string) (Config, error) {
 			Password:          os.Getenv("BUPT_PASSWORD"),
 			EncryptedPassword: os.Getenv("BUPT_ENCRYPTED_PWD"),
 			LoginURL:          getenv("BUPT_LOGIN_URL", "http://jwglweixin.bupt.edu.cn/bjyddx/login"),
-			ClassroomURL:      getenv("BUPT_CLASSROOM_URL", "http://jwglweixin.bupt.edu.cn/bjyddx/todayClassrooms"),
+			ClassroomURL:      getenv("BUPT_CLASSROOM_URL", "http://jwglweixin.bupt.edu.cn/bjyddx/todayClassrooms?campusId=0"),
 			Referer:           getenv("BUPT_REFERER", "https://jwglweixin.bupt.edu.cn/sjd/"),
 			UserAgent: getenv("BUPT_USER_AGENT",
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"),
