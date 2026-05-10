@@ -1,0 +1,53 @@
+services:
+  mysql:
+    image: mysql:8.0
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: empty_classroom
+      MYSQL_USER: empty
+      MYSQL_PASSWORD: empty
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uempty", "-pempty"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      TZ: Asia/Shanghai
+      DB_DSN: empty:empty@tcp(mysql:3306)/empty_classroom?parseTime=true&loc=Local&charset=utf8mb4
+      ALLOWED_ORIGINS: "*"
+      BUPT_USER_NO: ${BUPT_USER_NO:-}
+      BUPT_ENCRYPTED_PWD: ${BUPT_ENCRYPTED_PWD:-}
+      BUPT_PASSWORD: ${BUPT_PASSWORD:-}
+      ENABLE_SCHEDULER: "true"
+      RUN_SYNC_ON_START: "false"
+      AUTO_MIGRATE: "true"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mysql-data:

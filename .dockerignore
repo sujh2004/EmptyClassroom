@@ -1,0 +1,9 @@
+.git
+.env
+frontend/node_modules
+frontend/.npm-cache
+frontend/.vite-dev*.log
+frontend/dist
+tmp
+bin
+.gocache
