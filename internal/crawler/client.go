@@ -1,13 +1,11 @@
 package crawler
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"strings"
@@ -24,14 +22,9 @@ type Client struct {
 }
 
 func NewClient(cfg config.BUPTConfig) (*Client, error) {
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		return nil, err
-	}
 	return &Client{
 		cfg: cfg,
 		http: &http.Client{
-			Jar:     jar,
 			Timeout: cfg.Timeout,
 		},
 	}, nil
@@ -48,11 +41,13 @@ func (c *Client) FetchToday(ctx context.Context, campusID int) ([]model.Classroo
 		}
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.classroomURL(campusID), nil)
+	urlStr := c.cfg.ClassroomURL + strconv.Itoa(campusID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, err
 	}
 	c.setHeaders(req)
+	req.Header.Set("token", c.token)
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -87,17 +82,19 @@ func (c *Client) login(ctx context.Context) error {
 		return fmt.Errorf("BUPT_USER_NO is required")
 	}
 
-	form := url.Values{}
-	form.Set("userNo", c.cfg.UserNo)
-	form.Set("pwd", pwd)
-	form.Set("encode", "1")
+	// Build URL with login params as query string (matches the working reference)
+	parsed, _ := url.Parse(c.cfg.LoginURL)
+	q := parsed.Query()
+	q.Set("userNo", c.cfg.UserNo)
+	q.Set("pwd", pwd)
+	q.Set("encode", "1")
+	parsed.RawQuery = q.Encode()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.LoginURL, strings.NewReader(form.Encode()))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, parsed.String(), nil)
 	if err != nil {
 		return err
 	}
 	c.setHeaders(req)
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -137,20 +134,6 @@ func (c *Client) passwordCiphertext() (string, error) {
 	return cryptoutil.EncryptBUPTPassword(c.cfg.Password)
 }
 
-func (c *Client) classroomURL(campusID int) string {
-	parsed, err := url.Parse(c.cfg.ClassroomURL)
-	if err != nil {
-		return c.cfg.ClassroomURL
-	}
-	query := parsed.Query()
-	query.Set("campusId", strconv.Itoa(campusID))
-	if c.token != "" {
-		query.Set("token", c.token)
-	}
-	parsed.RawQuery = query.Encode()
-	return parsed.String()
-}
-
 func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("Referer", c.cfg.Referer)
 	req.Header.Set("User-Agent", c.cfg.UserAgent)
@@ -162,38 +145,12 @@ func loginFailed(body []byte) bool {
 	if err := json.Unmarshal(body, &obj); err != nil {
 		return false
 	}
-	if value, ok := lookup(obj, "success"); ok {
-		if success, ok := value.(bool); ok {
-			return !success
-		}
-	}
 	if value, ok := lookup(obj, "code"); ok {
-		msg := ""
-		if m, ok := lookup(obj, "message"); ok {
-			msg = strings.ToLower(stringify(m))
-		} else if m, ok := lookup(obj, "msg"); ok {
-			msg = strings.ToLower(stringify(m))
-		}
-		if msg != "" {
-			if strings.Contains(msg, "fail") || strings.Contains(msg, "error") || strings.Contains(msg, "错误") || strings.Contains(msg, "失败") || strings.Contains(msg, "不存在") || strings.Contains(msg, "非法") {
-				switch code := value.(type) {
-				case float64:
-					return code != 1 && code != 200
-				case string:
-					return code != "1" && code != "200" && !strings.EqualFold(code, "success")
-				}
-			}
+		if v, ok := stringify(value); ok {
+			return v != "1"
 		}
 	}
 	return false
-}
-
-func truncate(body []byte, max int) string {
-	body = bytes.TrimSpace(body)
-	if len(body) <= max {
-		return string(body)
-	}
-	return string(body[:max]) + "..."
 }
 
 func lookup(obj map[string]any, key string) (any, bool) {
@@ -206,11 +163,20 @@ func lookup(obj map[string]any, key string) (any, bool) {
 	return nil, false
 }
 
-func stringify(value any) string {
+func stringify(value any) (string, bool) {
 	switch typed := value.(type) {
 	case string:
-		return strings.TrimSpace(typed)
+		return strings.TrimSpace(typed), true
+	case float64:
+		return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(typed, 'f', 2, 64), "0"), "."), true
 	default:
-		return strings.TrimSpace(fmt.Sprint(typed))
+		return strings.TrimSpace(fmt.Sprint(typed)), true
 	}
+}
+
+func truncate(body []byte, max int) string {
+	if len(body) <= max {
+		return string(body)
+	}
+	return string(body[:max]) + "..."
 }
