@@ -15,16 +15,17 @@ func TestParseClassrooms(t *testing.T) {
 	if len(rooms) != 2 {
 		t.Fatalf("len(rooms) = %d, want 2", len(rooms))
 	}
-	// 教三-101: occupied slot 1+2 → "11000000000000"
-	// 教三-102: occupied slot 1 only → "10000000000000"
+	// CLASSROOMS lists FREE rooms. 教三-101 free in slot 1+2, 教三-102 free in slot 1.
+	// Default occupied='1', free='0'.
+	// 教三-101: "00111111111111", 教三-102: "01111111111111"
 	for _, r := range rooms {
 		if r.Building == "教三" && r.RoomNumber == "101" {
-			if r.Occupancy != "11000000000000" {
-				t.Fatalf("教三-101 occupancy = %s, want 11000000000000", r.Occupancy)
+			if r.Occupancy != "00111111111111" {
+				t.Fatalf("教三-101 occupancy = %s, want 00111111111111", r.Occupancy)
 			}
 		} else if r.Building == "教三" && r.RoomNumber == "102" {
-			if r.Occupancy != "10000000000000" {
-				t.Fatalf("教三-102 occupancy = %s, want 10000000000000", r.Occupancy)
+			if r.Occupancy != "01111111111111" {
+				t.Fatalf("教三-102 occupancy = %s, want 01111111111111", r.Occupancy)
 			}
 		} else {
 			t.Fatalf("unexpected room: %s-%s", r.Building, r.RoomNumber)

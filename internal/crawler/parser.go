@@ -67,12 +67,13 @@ func ParseClassrooms(body []byte) ([]model.ClassroomStatus, error) {
 			key := roomKey{building: building, roomNumber: room}
 			if _, exists := occupancy[key]; !exists {
 				bits := make([]byte, model.SlotCount)
+				// Initialize all occupied. CLASSROOMS lists free rooms.
 				for i := range bits {
-					bits[i] = '0'
+					bits[i] = '1'
 				}
 				occupancy[key] = bits
 			}
-			occupancy[key][slot-1] = '1'
+			occupancy[key][slot-1] = '0'
 		}
 	}
 
